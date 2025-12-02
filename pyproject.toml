@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fetchr"
+version = "0.1.0"
+description = "Multi-host file download library with parallel connections and resume capability"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Author"}
+]
+keywords = ["download", "parallel", "async", "aiohttp", "aria2c"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+dependencies = [
+    "aiohttp>=3.8.0",
+    "aiofiles>=23.0.0",
+    "aiohttp-socks>=0.8.0",
+    "rich>=13.0.0",
+    "beautifulsoup4>=4.12.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/author/fetchr"
+Repository = "https://github.com/author/fetchr"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fetchr*"]
+
+[tool.setuptools.package-data]
+fetchr = ["py.typed"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

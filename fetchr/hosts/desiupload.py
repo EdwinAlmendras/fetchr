@@ -1,0 +1,140 @@
+import aiohttp
+import asyncio
+import time
+import re
+from bs4 import BeautifulSoup
+from dataclasses import dataclass
+from typing import Optional, Dict, Any, Callable, Awaitable
+from urllib.parse import urljoin
+from ..types import DownloadInfo
+from ..host_resolver import AbstractHostResolver
+
+class DesiUploadResolver(AbstractHostResolver):
+    def __init__(self, timeout: int = 30):
+        self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession(
+            timeout=self.timeout,
+            headers=self.headers,
+            connector=aiohttp.TCPConnector(ssl=False)
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+            
+    def _extract_form_data(self, soup: BeautifulSoup, form_selector: str = 'form') -> Dict[str, str]:
+        """Extrae datos de formularios ocultos"""
+        form = soup.find('form')
+        if not form:
+            raise ValueError("No se encontró formulario en la página")
+        
+        form_data = {}
+        for input_tag in form.find_all('input', type='hidden'):
+            name = input_tag.get('name')
+            value = input_tag.get('value', '')
+            if name:
+                form_data[name] = value
+        
+        return form_data
+    
+
+    def _solve_captcha(self, soup):
+        data = []
+        
+        for span in soup.find_all('span'):
+            number = span.get_text().strip()
+            style = span.get('style', '')
+            match = re.search(r'padding-left:(\d+)px', style)
+            
+            if match and number.isdigit():
+                data.append((int(match.group(1)), number))
+        
+        data.sort()
+        return ''.join([num for pos, num in data])
+
+    async def get_download_info(self, url: str) -> DownloadInfo:
+        if not self.session:
+            raise RuntimeError("Usar dentro de un context manager: async with AnonFileDownloader() as downloader:")
+        
+        print(f"🔍 Iniciando descarga de: {url}")
+        
+        # PASO 1: Obtener página inicial
+        print("📄 Paso 1: Obteniendo página inicial...")
+        async with self.session.get(url) as response:
+            if response.status != 200:
+                raise ValueError(f"Error al acceder a la página inicial: {response.status}")
+            html_content = await response.text()
+            soup = BeautifulSoup(html_content, 'html.parser')
+        
+        form_data = self._extract_form_data(soup)
+        form_data['method_free'] = 'Liberta Descarga'
+        
+        async with self.session.post(url, data=form_data, headers={
+            'Content-Type': 'application/x-www-form-urlencoded',
+            }) as response:
+            if response.status != 200:
+                raise ValueError(f"Error en paso 2: {response.status}")
+            
+            html_content = await response.text()
+            with open('filedot_countdown.html', 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            soup = BeautifulSoup(html_content, 'html.parser')
+        
+        
+        
+        
+        
+        
+        # get captcha
+        
+        captcha_div = soup.select_one("#commonId table tr td div")
+        if not captcha_div:
+            raise ValueError("No captcha div found")
+        form_data = self._extract_form_data(soup)
+        form_data['adblock_detected'] = '0'
+        captcha_code = self._solve_captcha(captcha_div)
+        form_data['code'] = int(captcha_code)
+
+        # await 7 seconds
+        await asyncio.sleep(15)
+        
+        async with self.session.post(url, data=form_data) as response:
+            html_content = await response.text()
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # save html
+            with open('filedot_download.html', 'w', encoding='utf-8') as f:
+                f.write(html_content)
+        
+        anchor = soup.select_one("#direct_link a")
+        direct_url = anchor.get("href")
+        # extract filename from direct_url
+        filename = direct_url.split("/")[-1]
+        print(direct_url)
+        filesize = 0
+        async with self.session.head(direct_url) as response:
+            if 'Content-Length' in response.headers:
+                filesize_bytes = int(response.headers['Content-Length'])
+                filesize = filesize_bytes
+            else:
+                raise ValueError("No filesize found")
+
+        download_info = DownloadInfo(
+            filename=filename,
+            size=filesize,
+            download_url=direct_url,
+            headers={},
+        )
+        return download_info
+    
