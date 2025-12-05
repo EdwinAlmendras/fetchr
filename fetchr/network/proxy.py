@@ -10,16 +10,13 @@ from fetchr.config import PROXIES_PATH
 
 def get_proxies():
     """Get list of proxies from file. Returns empty list if file doesn't exist."""
-    # Check if file exists - proxies are optional
     if not PROXIES_PATH.exists():
+        print(f"No proxies file found at {PROXIES_PATH}")
         return []
     
-    try:
-        with open(PROXIES_PATH, "r", encoding='utf-8') as f:
-            proxies = f.readlines()
-    except (FileNotFoundError, IOError, OSError, PermissionError):
-        return []
-        
+    with open(PROXIES_PATH, "r", encoding='utf-8') as f:
+        proxies = f.readlines()
+    
     fix_proxies = []
     for proxy in proxies:
         proxy = proxy.strip()
