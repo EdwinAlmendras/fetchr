@@ -128,7 +128,8 @@ class Aria2cDownloader():
 
         if use_random_proxy:
             proxy = get_random_proxy()
-            cmd.extend(["--all-proxy", proxy])
+            if proxy:
+                cmd.extend(["--all-proxy", proxy])
         elif proxy:
             cmd.extend(["--all-proxy", proxy])
         if ignore_ssl:

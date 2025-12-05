@@ -201,50 +201,101 @@ class Downloader():
         return host
         
     async def  download_file(self, url: str, download_dir, callback_progress: Callable[[int, int], None] = lambda a, b: None, solve_captcha: Callable[[str], Awaitable[None]] = None) -> str:
-        if "st1.ranoz.gg" in url:
-            # replace to st7
-            url = url.replace("st1.ranoz.gg", "st7.ranoz.gg")
-        
-        host = self._get_host(url)
-        
-        if host not in HOSTS_HANLDER:
-            HOST_MANAGER = HOSTS_HANLDER["default"]
-        else:
-            HOST_MANAGER = HOSTS_HANLDER[host]
-        resolver = HOST_MANAGER["resolver"]()
-        
-        download_info: DownloadInfo = None
-        logger.info(f"Host detected: {host}")
-        async with resolver as resolver:
-            logger.debug(f"Getting download info for {url}")
-            async with concurrent_request_info_semaphore:
-                download_info = await resolver.get_download_info(url)
-            logger.debug(f"Download info: {download_info}")
-        if isinstance(download_info, list):
-            logger.debug(f"download info its a list {len(download_info)}")
-            tasks = []
-            for dl_info in download_info:
-                options = self._get_options(HOST_MANAGER, download_dir, dl_info, resolver, callback_progress)
-                task = asyncio.create_task(self.process_download(options, host, download_dir, dl_info))
-                tasks.append(task)
-            await asyncio.gather(*tasks)
-        else:
-            options = self._get_options(HOST_MANAGER, download_dir, download_info, resolver, callback_progress)
-            logger.debug("download info its not alist")
-            await self.process_download(options, host, download_dir, download_info)
+        try:
+            if "st1.ranoz.gg" in url:
+                # replace to st7
+                url = url.replace("st1.ranoz.gg", "st7.ranoz.gg")
+            
+            host = self._get_host(url)
+            
+            if host not in HOSTS_HANLDER:
+                HOST_MANAGER = HOSTS_HANLDER["default"]
+                logger.debug(f"Using default host manager for {host}")
+            else:
+                HOST_MANAGER = HOSTS_HANLDER[host]
+            
+            resolver = HOST_MANAGER["resolver"]()
+            
+            download_info: DownloadInfo = None
+            logger.info(f"Host detected: {host}")
+            
+            try:
+                async with resolver as resolver:
+                    logger.debug(f"Getting download info for {url}")
+                    async with concurrent_request_info_semaphore:
+                        download_info = await resolver.get_download_info(url)
+                    logger.debug(f"Download info: {download_info}")
+            except aiohttp.ClientResponseError as e:
+                error_msg = f"HTTP {e.status} error getting download info from {host}: {e.message}"
+                logger.error(error_msg)
+                logger.debug(f"Response headers: {e.headers if hasattr(e, 'headers') else 'N/A'}")
+                raise Exception(error_msg) from e
+            except aiohttp.ClientError as e:
+                error_msg = f"Network error getting download info from {host}: {str(e)}"
+                logger.error(error_msg)
+                raise Exception(error_msg) from e
+            except Exception as e:
+                error_msg = f"Error getting download info from {host}: {type(e).__name__}: {str(e)}"
+                logger.error(error_msg)
+                logger.debug(f"Exception details: {e}", exc_info=True)
+                raise Exception(error_msg) from e
+            
+            if download_info is None:
+                raise Exception(f"Failed to get download info for {url} - resolver returned None")
+            
+            if isinstance(download_info, list):
+                logger.debug(f"download info its a list {len(download_info)}")
+                tasks = []
+                for dl_info in download_info:
+                    options = self._get_options(HOST_MANAGER, download_dir, dl_info, resolver, callback_progress)
+                    task = asyncio.create_task(self.process_download(options, host, download_dir, dl_info))
+                    tasks.append(task)
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Check for errors in results
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Download {i+1}/{len(download_info)} failed: {result}")
+                        raise result
+            else:
+                options = self._get_options(HOST_MANAGER, download_dir, download_info, resolver, callback_progress)
+                logger.debug("download info its not a list")
+                await self.process_download(options, host, download_dir, download_info)
+        except Exception as e:
+            # Add context to the error
+            error_type = type(e).__name__
+            error_msg = str(e)
+            
+            # Create a more descriptive error message
+            if "HTTP" in error_msg or "Network" in error_msg or "error getting download info" in error_msg:
+                # Already has context, just re-raise
+                raise
+            else:
+                # Add more context
+                context_msg = f"Download failed for {url}: {error_type}: {error_msg}"
+                logger.error(context_msg)
+                logger.debug(f"Full exception traceback:", exc_info=True)
+                raise Exception(context_msg) from e
             
     async def process_download(self, options, host, download_dir, download_info):
-        if self.check_exists(download_dir, download_info):
-            return True
-        host_semapthore = self.semaphores.get(host, None)
-        async with self.global_sempaphore:
-            if host_semapthore:
-                logger.debug(f"Applying host semaphore to -> {host}")
-                async with host_semapthore:
+        try:
+            if self.check_exists(download_dir, download_info):
+                logger.debug(f"File {download_info.filename} already exists, skipping download")
+                return True
+            
+            host_semapthore = self.semaphores.get(host, None)
+            async with self.global_sempaphore:
+                if host_semapthore:
+                    logger.debug(f"Applying host semaphore to -> {host}")
+                    async with host_semapthore:
+                        return await self.start_download(options)
+                else:
+                    logger.debug(f"No semaphore configured for host {host}, using default")
                     return await self.start_download(options)
-            else:
-                logger.debug(f"Not mathced sempahore satysayng this host")
-                return await self.start_download(options)
+        except Exception as e:
+            error_msg = f"Error downloading {download_info.filename if download_info else 'unknown file'}: {type(e).__name__}: {str(e)}"
+            logger.error(error_msg)
+            logger.debug(f"Process download exception details:", exc_info=True)
+            raise Exception(error_msg) from e
     
     def check_exists(self, download_dir, download_info):
         if download_info.filename and download_dir.joinpath(download_info.filename).exists():
@@ -390,10 +441,33 @@ class Downloader():
 
                 return local_path
             
+        except aiohttp.ClientResponseError as e:
+            error_msg = f"HTTP {e.status} error downloading {download_info.download_url}: {e.message}"
+            if e.status == 404:
+                error_msg = f"File not found (404) at {download_info.download_url}"
+            elif e.status == 403:
+                error_msg = f"Access forbidden (403) at {download_info.download_url}"
+            elif e.status >= 500:
+                error_msg = f"Server error ({e.status}) at {download_info.download_url}"
+            logger.error(error_msg)
+            logger.debug(f"Response headers: {e.headers if hasattr(e, 'headers') else 'N/A'}")
+            raise Exception(error_msg) from e
+        except aiohttp.ClientError as e:
+            error_msg = f"Network error downloading {download_info.download_url}: {type(e).__name__}: {str(e)}"
+            logger.error(error_msg)
+            logger.debug(f"Network error details:", exc_info=True)
+            raise Exception(error_msg) from e
+        except asyncio.TimeoutError as e:
+            error_msg = f"Timeout downloading {download_info.download_url}"
+            logger.error(error_msg)
+            raise Exception(error_msg) from e
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            raise e
+            error_type = type(e).__name__
+            error_msg = str(e)
+            # Only log traceback in debug mode to avoid cluttering output
+            logger.error(f"Error downloading {download_info.filename if download_info else 'unknown'}: {error_type}: {error_msg}")
+            logger.debug(f"Full exception traceback:", exc_info=True)
+            raise
     def _extract_filename(self, response: aiohttp.ClientResponse, url: str) -> str:
         """Get filename from headers or fallback."""
         cd = response.headers.get("content-disposition")
