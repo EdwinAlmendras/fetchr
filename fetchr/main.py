@@ -229,16 +229,22 @@ class Downloader():
                 error_msg = f"HTTP {e.status} error getting download info from {host}: {e.message}"
                 logger.error(error_msg)
                 logger.debug(f"Response headers: {e.headers if hasattr(e, 'headers') else 'N/A'}")
-                raise Exception(error_msg) from e
+                # Preserve 404 errors - don't retry, file doesn't exist
+                if e.status == 404:
+                    raise e  # Re-raise the original 404 error
+                # For other HTTP errors, re-raise the original error to preserve status code
+                raise e
             except aiohttp.ClientError as e:
                 error_msg = f"Network error getting download info from {host}: {str(e)}"
                 logger.error(error_msg)
-                raise Exception(error_msg) from e
+                # Re-raise the original error to preserve error type
+                raise e
             except Exception as e:
                 error_msg = f"Error getting download info from {host}: {type(e).__name__}: {str(e)}"
                 logger.error(error_msg)
                 logger.debug(f"Exception details: {e}", exc_info=True)
-                raise Exception(error_msg) from e
+                # Re-raise the original error to preserve error type
+                raise e
             
             if download_info is None:
                 raise Exception(f"Failed to get download info for {url} - resolver returned None")
