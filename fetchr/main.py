@@ -101,7 +101,7 @@ HOSTS_HANLDER = {
     },
     "gofile.io": {
         "max_concurrent": 5,
-        "max_connections": 1,
+        "max_connections": 5,
         "download_with_aria2c": True,
         "use_random_proxy": False,
         "resolver": GofileResolver
