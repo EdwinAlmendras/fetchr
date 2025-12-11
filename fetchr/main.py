@@ -101,7 +101,9 @@ HOSTS_HANLDER = {
     },
     "gofile.io": {
         "max_concurrent": 5,
-        "max_connections": 1, 
+        "max_connections": 1,
+        "download_with_aria2c": True,
+        "use_random_proxy": False,
         "resolver": GofileResolver
     }, # ok
     "1fichier.com": { 
@@ -123,7 +125,7 @@ HOSTS_HANLDER = {
     },
     "pixeldrain.com": {
         "download_with_aria2c": True,
-        "max_concurrent": 5, 
+        "max_concurrent": 10, 
         "max_connections": 3, 
         "resolver": PixelDrainResolver
     },
