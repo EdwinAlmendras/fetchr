@@ -76,10 +76,12 @@ class GofileResolver(AbstractHostResolver):
         """Gets information about a file or folder in GoFile"""
         if not self.session:
             self.session = aiohttp.ClientSession()
-        
-        url = f"{self.base_url}/contents/{file_id}?wt=4fd6sg89d7s6&token={self.token}"
+        referer = "https://gofile.io/"
+        url = f"{self.base_url}/contents/{file_id}?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1"
         print(f"url: {url}")
-        async with self.session.get(url, headers={"Cookie": f"accountToken={self.token};path=/;domain=gofile.io;SameSite=Lax;Secure;"}) as response:
+        headers={"Authorization": f"Bearer {self.token}", "Referer": referer, "X-Website-Token": "4fd6sg89d7s6"}
+        print(f"headers: {headers}")
+        async with self.session.get(url, headers=headers) as response:
             response.raise_for_status()
             data = await response.json()
             if data.get("status") != "ok":
