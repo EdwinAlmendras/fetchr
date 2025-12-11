@@ -340,6 +340,7 @@ class Downloader():
                 max_connections=options["max_connections"],
                 max_concurrent_downloads=options["max_connections"],
                 use_random_proxy=options["use_random_proxy"],
+                headers=options["download_info"].headers or {},
                 proxy=options["resolver"].proxy if hasattr(options["resolver"], "proxy") else None,
             )
         else:
