@@ -104,6 +104,7 @@ HOSTS_HANLDER = {
         "max_connections": 5,
         "download_with_aria2c": True,
         "use_random_proxy": False,
+        "use_headers": True,
         "resolver": GofileResolver
     }, # ok
     "1fichier.com": { 
@@ -138,7 +139,7 @@ HOSTS_HANLDER = {
     "filemirage.com": {
         "download_with_aria2c": True,
         "max_concurrent": 5, 
-        "max_connections": 5, 
+        "max_connections": 5,
         "resolver": FileMirageResolver
     },
     "upload.ee": {
@@ -325,7 +326,8 @@ class Downloader():
             "download_info": download_info,
             "callback_progress": callback_progress,
             "aria2c_parallel": HOST_MANAGER.get("aria2c_parallel", False),
-            "resolver": resolver
+            "resolver": resolver,
+            "use_headers": HOST_MANAGER.get("use_headers", False),
         }   
                 
     async def start_download(self, options):
@@ -340,7 +342,7 @@ class Downloader():
                 max_connections=options["max_connections"],
                 max_concurrent_downloads=options["max_connections"],
                 use_random_proxy=options["use_random_proxy"],
-                headers=options["download_info"].headers or {},
+                headers=options["download_info"].headers if options["use_headers"] else None,
                 proxy=options["resolver"].proxy if hasattr(options["resolver"], "proxy") else None,
             )
         else:
