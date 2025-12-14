@@ -5,6 +5,9 @@ from fetchr.network import get_tor_client
 import logging
 from urllib.parse import unquote
 logger = logging.getLogger("downloader.passtrought")
+
+URL_PROTECTORS = ["cpftwf66tdxnhrtau6t4hvm5sznlgl"]
+
 class PassThroughResolver(AbstractHostResolver):
     def __init__(self):
         self.session = None
@@ -31,7 +34,18 @@ class PassThroughResolver(AbstractHostResolver):
         
         # if url is onion use tor client
         
+        
+        
+        
         client = get_tor_client() if "onion" in url else self.session
+        
+        if url in URL_PROTECTORS:
+            # get redirect url
+            response = await client.get(url)
+            url = response.url
+            logger.info(f"Resolved url: {url} by redirect")
+            client = self.session
+        
         response = await client.head(url, *args, **kwargs)
         # if response code 405     
         if response.status == 405:
