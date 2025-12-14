@@ -33,7 +33,7 @@ class PassThroughResolver(AbstractHostResolver):
         if PROTECTOR_HOST in url:
             logger.info("URL match in protectors")
             response = await client.get(url)
-            url = response.url
+            url = str(response.url)
             logger.info(f"Resolved url: {url} by redirect")
             client = self.session
         
