@@ -29,7 +29,7 @@ class PassThroughResolver(AbstractHostResolver):
             
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
         client = get_tor_client() if "onion" in url else self.session
-        
+        logger.info(f"Getting download info for url: {url}, check protector host: {PROTECTOR_HOST}")
         if url in PROTECTOR_HOST:
             logger.info("URL match in protectors")
             response = await client.get(url)
