@@ -6,7 +6,7 @@ import logging
 from urllib.parse import unquote
 logger = logging.getLogger("downloader.passtrought")
 
-URL_PROTECTORS = ["cpftwf66tdxnhrtau6t4hvm5sznlgl"]
+PROTECTOR_HOST = "cpftwf66tdxnhrtau6t4hvm5sznlglv4r4ha5uxmc7ulhmcgry3mttyd"
 
 class PassThroughResolver(AbstractHostResolver):
     def __init__(self):
@@ -20,27 +20,18 @@ class PassThroughResolver(AbstractHostResolver):
             'Upgrade-Insecure-Requests': '1',
         }
     async def __aenter__(self):
-        print("Entering PassThroughResolver")
         self.session = aiohttp.ClientSession(headers=self.headers)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        print("Exiting PassThroughResolver")
         if self.session:
             await self.session.close()
             
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
-        print(f"requsting url: {url}", args, kwargs)
-        
-        # if url is onion use tor client
-        
-        
-        
-        
         client = get_tor_client() if "onion" in url else self.session
         
-        if url in URL_PROTECTORS:
-            # get redirect url
+        if url in PROTECTOR_HOST:
+            logger.info("URL match in protectors")
             response = await client.get(url)
             url = response.url
             logger.info(f"Resolved url: {url} by redirect")
