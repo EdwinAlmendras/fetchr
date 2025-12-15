@@ -171,6 +171,7 @@ HOSTS_HANLDER = {
     "default": {
         "download_with_aria2c": True,
         "max_connections": 5,
+        "max_concurrent": 3,
         "resolver": PassThroughResolver,
     }, 
 }
@@ -292,13 +293,17 @@ class Downloader():
                 return True
             
             host_semapthore = self.semaphores.get(host, None)
+            # Si el host no tiene semáforo específico, usar el semáforo de "default" si existe
+            if host_semapthore is None:
+                host_semapthore = self.semaphores.get("default", None)
+            
             async with self.global_sempaphore:
                 if host_semapthore:
                     logger.debug(f"Applying host semaphore to -> {host}")
                     async with host_semapthore:
                         return await self.start_download(options)
                 else:
-                    logger.debug(f"No semaphore configured for host {host}, using default")
+                    logger.debug(f"No semaphore configured for host {host}, using global only")
                     return await self.start_download(options)
         except Exception as e:
             error_msg = f"Error downloading {download_info.filename if download_info else 'unknown file'}: {type(e).__name__}: {str(e)}"
