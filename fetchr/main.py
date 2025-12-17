@@ -98,6 +98,7 @@ HOSTS_HANLDER = {
         "download_with_aria2c": True,
         "resolver": AnonFileResolver,
         "max_connections": 1, 
+        "max_concurrent": 5 if bool(os.getenv('ANONFILE_USE_PREMIUM')) else 10,
     },
     "gofile.io": {
         "max_concurrent": 5,

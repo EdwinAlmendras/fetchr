@@ -162,6 +162,13 @@ proxy1.example.com:8080
 proxy2.example.com:8080
 ```
 
+# Changelong
+- 17/12/25 - Added support for premium acocunts anonfile
+envirnment variables:
+ANONFILE_USE_PREMIUM
+ANONFILE_LOGIN_COOKIE
+ANONFILE_XFSS_COOKIE
+
 ## Requirements
 
 - Python >= 3.10
