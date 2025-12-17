@@ -265,13 +265,19 @@ class AnonFileResolver(AbstractHostResolver):
             'lang': 'spanish',
             'xfss': os.getenv('ANONFILE_XFSS_COOKIE'),
         }
-        
+        async with self.session.get(anonfile_url) as response:
+            response.raise_for_status()
+            html_content = await response.text()
+            
         async with self.session.post(anonfile_url, data=data, cookies=cookies) as response:
             response.raise_for_status()
             html_content = await response.text()
             soup = BeautifulSoup(html_content, 'html.parser')
             
-        direct_url = soup.find('a', class_='stretched-link').get('href')
+        anchor = soup.find('a', class_='stretched-link')
+        if not anchor:
+            raise ValueError("Request failed, direct link not found")
+        direct_url = anchor.get('href')
         headers_info = {}
         async with self.session.head(direct_url) as response:
             headers_info = dict(response.headers)
