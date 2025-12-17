@@ -273,6 +273,8 @@ class AnonFileResolver(AbstractHostResolver):
             response.raise_for_status()
             html_content = await response.text()
             soup = BeautifulSoup(html_content, 'html.parser')
+            with open('anonfile.html', 'w', encoding='utf-8') as f:
+                f.write(html_content)
             
         anchor = soup.find('a', class_='stretched-link')
         if not anchor:
