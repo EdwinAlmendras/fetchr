@@ -12,7 +12,8 @@ from ..types import DownloadInfo
 from ..host_resolver import AbstractHostResolver
 from fetchr.network import get_aiohttp_proxy_connector
 import logging
-
+import os
+import urllib.parse
 logger = logging.getLogger(__name__)
 
 class TimeoutSkipped(Exception):
@@ -26,6 +27,7 @@ class WrongCaptcha(Exception):
 class AnonFileResolver(AbstractHostResolver):
     def __init__(self, timeout: int = 30):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self.use_premium = os.getenv('ANONFILE_USE_PREMIUM', 'false').lower() == 'true'
         self.headers = {
             # Mirror browser-like headers as in test.sh
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
@@ -36,7 +38,6 @@ class AnonFileResolver(AbstractHostResolver):
             'Upgrade-Insecure-Requests': '1',
             'Cache-Control': 'max-age=0',
             'Content-Type': 'application/x-www-form-urlencoded',
-            # Client hints and fetch metadata
             'sec-ch-ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
@@ -144,7 +145,6 @@ class AnonFileResolver(AbstractHostResolver):
         return match.group(1) if match else 'unknown'
     
     async def get_download_info(self, anonfile_url: str, retry_no: int = 0) -> DownloadInfo:
-        from fetchr.hosts.axfc import captcha_solver, ErrorImageInvalid
         
         
         file_id = self._extract_file_id_from_url(anonfile_url)
@@ -152,23 +152,25 @@ class AnonFileResolver(AbstractHostResolver):
         # Normalize to HTTPS to mirror browser flow
         if anonfile_url.startswith("http://"):
             anonfile_url = "https://" + anonfile_url[len("http://"):]
+
+        if self.use_premium:
+            return await self._premium_method(anonfile_url)
+        else:
+            await self._free_method(anonfile_url, retry_no)
+    
+    async def _free_method(self, anonfile_url: str, retry_no: int = 0) -> Dict[str, str]:
+        from fetchr.hosts.axfc import captcha_solver, ErrorImageInvalid
         async with self.session.get(anonfile_url) as response:
             response.raise_for_status()
             html_content = await response.text()
             soup = BeautifulSoup(html_content, 'html.parser')
             current_url = str(response.url)
-
         form_data = self._extract_form_data(soup)
-        # Mantener el valor de 'referer' del formulario tal como llega (suele ser vacío)
-        # Enforce empty usr_login as requested
         form_data['usr_login'] = ''
-
-        # Ensure required tracking cookie before POST
         try:
             self.session.cookie_jar.update_cookies({'_pk_ses.1.b0a4': '1'}, response_url=URL(current_url))
         except Exception as e:
             logger.warning(f"Failed to inject _pk_ses.1.b0a4 cookie: {e}")
-        
         post_headers = self._build_headers(current_url)
         async with self.session.post(
             current_url,
@@ -183,7 +185,6 @@ class AnonFileResolver(AbstractHostResolver):
         file_info = self._extract_file_info(soup)
         form_data_2 = self._extract_form_data(soup)
         form_data_2['adblock_detected'] = '0'
-        # Mantener referer del form tal cual (no forzar aquí)
         
         captcha_image = self._extract_captcha_image(soup)
         
@@ -200,14 +201,11 @@ class AnonFileResolver(AbstractHostResolver):
                 if retry_no >= 3:
                     logger.error("Max retries reached for captcha")
                     raise ValueError("Max retries reached for captcha")
-                return await self.get_download_info(anonfile_url, retry_no + 1)
+                return await self._free_method(anonfile_url, retry_no + 1)
             form_data_2['code'] = code
-            
         logger.info("Waiting 17 seconds")
         await asyncio.sleep(17)
-        
         direct_url = None
-        
         async def send_form_data(url, data):
             second_headers = self._build_headers(current_url)
             async with self.session.post(
@@ -250,3 +248,40 @@ class AnonFileResolver(AbstractHostResolver):
         )
         return download_info
     
+    async def _premium_method(self, anonfile_url: str) -> Dict[str, str]:
+        id = anonfile_url.split("/")[-1]
+        data = {
+            'op': 'download2',
+            'id': id,
+            'rand': '',
+            'referer': '',
+            'method_free': '',
+            'method_premium': '1',
+            'adblock_detected': '0',
+        }
+        cookies = {
+            'login': os.getenv('ANONFILE_LOGIN_COOKIE'),
+            'gdpr-cookie-consent': 'true',
+            'lang': 'spanish',
+            'xfss': os.getenv('ANONFILE_XFSS_COOKIE'),
+        }
+        
+        async with self.session.post(anonfile_url, data=data, cookies=cookies) as response:
+            response.raise_for_status()
+            html_content = await response.text()
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+        direct_url = soup.find('a', class_='stretched-link').get('href')
+        headers_info = {}
+        async with self.session.head(direct_url) as response:
+            headers_info = dict(response.headers)
+            if 'Content-Length' in headers_info:
+                filesize_bytes = int(headers_info['Content-Length'])
+    
+        download_info = DownloadInfo(
+            filename=urllib.parse.unquote(direct_url.split("/")[-1]),
+            size=filesize_bytes,
+            download_url=direct_url,
+            headers={},
+        )
+        return download_info
