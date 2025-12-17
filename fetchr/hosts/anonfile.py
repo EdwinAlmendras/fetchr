@@ -249,7 +249,16 @@ class AnonFileResolver(AbstractHostResolver):
         return download_info
     
     async def _premium_method(self, anonfile_url: str) -> Dict[str, str]:
-        id = anonfile_url.split("/")[-1]
+        # https://anonfile.de/FILEID or https://anonfile.de/FILEID/filename
+        # Get file id (the part after the domain)
+        parts = anonfile_url.rstrip("/").split("/")
+        if len(parts) > 3:
+            file_id = parts[3]
+        elif len(parts) > 2:
+            file_id = parts[2]
+        else:
+            file_id = None
+        id = file_id
         data = {
             'op': 'download2',
             'id': id,
@@ -265,16 +274,11 @@ class AnonFileResolver(AbstractHostResolver):
             'lang': 'spanish',
             'xfss': os.getenv('ANONFILE_XFSS_COOKIE'),
         }
-        async with self.session.get(anonfile_url) as response:
-            response.raise_for_status()
-            html_content = await response.text()
             
         async with self.session.post(anonfile_url, data=data, cookies=cookies) as response:
             response.raise_for_status()
             html_content = await response.text()
             soup = BeautifulSoup(html_content, 'html.parser')
-            with open('anonfile.html', 'w', encoding='utf-8') as f:
-                f.write(html_content)
             
         anchor = soup.find('a', class_='stretched-link')
         if not anchor:
