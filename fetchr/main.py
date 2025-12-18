@@ -99,7 +99,7 @@ HOSTS_HANLDER = {
         "resolver": AnonFileResolver,
         "max_connections": 1, 
         "max_concurrent": 5 if bool(os.getenv('ANONFILE_USE_PREMIUM')) else 10,
-        "use_random_proxy": False,
+        "use_random_proxy": not bool(os.getenv('ANONFILE_USE_PREMIUM')),
     },
     "gofile.io": {
         "max_concurrent": 5,
