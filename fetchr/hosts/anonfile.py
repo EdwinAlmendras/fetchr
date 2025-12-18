@@ -289,7 +289,9 @@ class AnonFileResolver(AbstractHostResolver):
             headers_info = dict(response.headers)
             if 'Content-Length' in headers_info:
                 filesize_bytes = int(headers_info['Content-Length'])
-    
+                
+
+        
         download_info = DownloadInfo(
             filename=urllib.parse.unquote(direct_url.split("/")[-1]),
             size=filesize_bytes,

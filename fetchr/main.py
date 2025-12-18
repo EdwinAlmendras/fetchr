@@ -44,9 +44,9 @@ CHUNK_SIZE = 4 * 1024 * 1024
 UPLOAD_FLIX_HOSTS = ["uploadflix.cc", "uploadflix.net", "uploadflix.com", "1uploadflix.net", "dl.uploadflix.com"]
 
 # 1fichier """ UPLOAD_FLIX_HOSTS + """
-SUPPORTED_HOSTS = [ "pixeldrain.com","filedot.to", "ranoz.gg", 
+SUPPORTED_HOSTS = ["anonfile.de", "pixeldrain.com","filedot.to", "ranoz.gg", 
     "gofile.io", "filemirage.com","uploadbay.net", "pomf2.lain.la", "www.upload.ee", "upload.ee",
-     "desiupload.co", "send.now", "krakenfiles.com"] +  ["axfc.net", "anonfile.de", "uploadhive.com"] + UPLOAD_FLIX_HOSTS + ["1fichier.com"]
+     "desiupload.co", "send.now", "krakenfiles.com"] +  ["axfc.net", "uploadhive.com"] + UPLOAD_FLIX_HOSTS + ["1fichier.com"]
 
 pass_through_hosts = ["uploadbay.net", "clicknupload.net", "clicknupload.click", "pomf2.lain.la"]
 
