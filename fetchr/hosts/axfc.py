@@ -29,8 +29,6 @@ async def captcha_solver(session: aiohttp.ClientSession, captcha_url: str) -> st
     image_path = Path(f"{CAPTCHAS_DIR}/{id}.jpg")
     text_path = Path(f"{CAPTCHAS_DIR}/{id}.txt")
     async with session.get(captcha_url) as response:
-        # check if response its not a html
-        print(response.headers)
         image_content_types = ["image/jpeg", "image/png", "image/webp"]
         if response.headers.get("Content-Type") not in image_content_types:
             raise ErrorImageInvalid(f"Content-Type is not image/jpeg {response.headers.get('Content-Type')}")
@@ -41,7 +39,6 @@ async def captcha_solver(session: aiohttp.ClientSession, captcha_url: str) -> st
                 raise ErrorImageInvalid("No image found")
             await f.write(image)
     code = None
-    print(f"Waiting for {id}.txt")
     while not code:
         if text_path.exists():
             async with aiofiles.open(text_path, "r") as f:

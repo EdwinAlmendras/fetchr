@@ -1,13 +1,7 @@
 import aiohttp
-import asyncio
-import time
-import re
-from bs4 import BeautifulSoup
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Callable, Awaitable
-from urllib.parse import urljoin
-from ..types import DownloadInfo
-from ..host_resolver import AbstractHostResolver
+from fetchr.types import DownloadInfo
+from fetchr.host_resolver import AbstractHostResolver
+from fetchr.resolver import get_direct_link
 
 class PixelDrainResolver(AbstractHostResolver):
     def __init__(self, timeout: int = 5):
@@ -30,23 +24,33 @@ class PixelDrainResolver(AbstractHostResolver):
             
     async def get_download_info(self, url: str) -> DownloadInfo:
         if not self.session:
-            raise RuntimeError("Usar dentro de un context manager: async with AnonFileDownloader() as downloader:")
-        
-        resp1 = await self.session.get(url)
-        # replace /u/ to /api/
+            await self.__aenter__()
+            
         url = url.replace("/u/", "/api/file/")
+        
         async with self.session.head(url, timeout=5) as response:
-            if 'Content-Length' in response.headers:
-                filesize_bytes = int(response.headers['Content-Length'])
+            headers_info = dict(response.headers)
+            if 'Content-Length' in headers_info:
+                filesize_bytes = int(headers_info['Content-Length'])
                 filesize = filesize_bytes
+            if 'Content-Disposition' in headers_info:
+                filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
+
+        async with self.session.get(url, timeout=5) as response:
+            data = await response.json()
+            if not data['success']:
+                message = data['message']
+                if message == "file_rate_limited_captcha_required":
+                    direct_link = await get_direct_link(url)
+                else:
+                    raise Exception(message)
             else:
-                filesize = 0
-            filename = response.headers['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"') if 'Content-Disposition' in response.headers else ""
+                direct_link = url
         
         download_info = DownloadInfo(
             filename=filename,
             size=filesize,
-            download_url=url,
+            download_url=direct_link,
             headers=response.headers,
         )
         return download_info
