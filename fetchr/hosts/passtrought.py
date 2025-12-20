@@ -6,7 +6,12 @@ import logging
 from urllib.parse import unquote
 logger = logging.getLogger("downloader.passtrought")
 
-PROTECTOR_HOST = "cpftwf66tdxnhrtau6t4hvm5sznlglv4r4ha5uxmc7ulhmcgry3mttyd"
+
+REDIRECT_HOSTS = [
+    "sd2y3ekfioqfag45vmufbcezz44jfdz4ihefmogjfjih5sadmbmxzaid.onion", 
+    "cpftwf66tdxnhrtau6t4hvm5sznlglv4r4ha5uxmc7ulhmcgry3mttyd"
+]
+
 
 class PassThroughResolver(AbstractHostResolver):
     def __init__(self):
@@ -29,8 +34,8 @@ class PassThroughResolver(AbstractHostResolver):
             
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
         client = get_tor_client() if "onion" in url else self.session
-        logger.info(f"Getting download info for url: {url}, check protector host: {PROTECTOR_HOST}")
-        if PROTECTOR_HOST in url:
+        logger.info(f"Getting download info for url: {url}, check protector host: {REDIRECT_HOSTS}")
+        if any(host in url for host in REDIRECT_HOSTS):
             logger.info("URL match in protectors")
             response = await client.get(url)
             url = str(response.url)
