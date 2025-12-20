@@ -8,177 +8,25 @@ from urllib.parse import urlparse
 from typing import Awaitable
 import logging
 import time
-from functools import partial
-from aiohttp_socks.connector import _ResponseHandler
 from rich.console import Console
-
-from fetchr.hosts import passtrought
-from fetchr.hosts.krakenfiles import KrakenFilesResolver
-from fetchr.hosts.sendnow import SendNowResolver
-from fetchr.hosts.ranoz import RanozResolver
-from fetchr.hosts.anonfile import AnonFileResolver
-from fetchr.hosts.gofile import GofileResolver
-from fetchr.hosts.passtrought import PassThroughResolver
-from fetchr.hosts.uploadflix import UploadFlixResolver
-from fetchr.hosts.onefichier import OneFichierResolver
-from fetchr.hosts.filedot import FiledotResolver
-from fetchr.hosts.desiupload import DesiUploadResolver
-from fetchr.hosts.pixeldrain import PixelDrainResolver
-from fetchr.hosts.axfc import AxfcResolver
-from fetchr.hosts.filemirage import FileMirageResolver
-from fetchr.hosts.uploadhive import UploadHiveResolver
-from fetchr.hosts.uploadee import UploadeeResolver
 from fetchr.types import DownloadInfo
-import subprocess
 from fetchr.parallel import ParallelDownloader
 from fetchr.aria2c import Aria2cDownloader
-anonfile_locker = asyncio.Lock()
+from fetchr.config_loader import load_hosts_config
 from rich import print
 
 
 console = Console()
-logger = logging.getLogger("downloader")
+logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
-UPLOAD_FLIX_HOSTS = ["uploadflix.cc", "uploadflix.net", "uploadflix.com", "1uploadflix.net", "dl.uploadflix.com"]
+_config_data = load_hosts_config()
 
-# 1fichier """ UPLOAD_FLIX_HOSTS + """
-SUPPORTED_HOSTS = ["anonfile.de", "pixeldrain.com","filedot.to", "ranoz.gg", 
-    "gofile.io", "filemirage.com","uploadbay.net", "pomf2.lain.la", "www.upload.ee", "upload.ee",
-     "desiupload.co", "send.now", "krakenfiles.com"] +  ["axfc.net", "uploadhive.com"] + UPLOAD_FLIX_HOSTS + ["1fichier.com"]
-
-pass_through_hosts = ["uploadbay.net", "clicknupload.net", "clicknupload.click", "pomf2.lain.la"]
-
-HOSTS_HANLDER = {
-    "ranoz.gg":  {
-        "max_concurrent": 5, 
-        "download_with_aria2c": True,
-        "max_connections": 5, 
-        "resolver": RanozResolver
-    }, 
-    "st7.ranoz.gg": {
-        "download_with_aria2c": True,
-        "max_concurrent": 5, 
-        "max_connections": 5, 
-        "resolver": PassThroughResolver
-    },
-    "clicknupload.net": {
-        "max_concurrent": 1, 
-        "max_connections": 5, 
-        "resolver": PassThroughResolver
-    },
-        "clicknupload.net": {
-        "max_concurrent": 1, 
-        "max_connections": 5, 
-        "resolver": PassThroughResolver
-    },
-    "uploadbay.net": {
-        "max_concurrent": 5, 
-        "max_connections": 5,
-        "download_with_aria2c": True,
-        "resolver": PassThroughResolver
-    },
-    "pomf2.lain.la": {
-        "max_concurrent": 5, 
-        "max_connections": 5, 
-        "download_with_aria2c": True,
-        "resolver": PassThroughResolver
-    },
-    **{
-        host: {
-            "ignore_ssl": True,
-            "max_concurrent": 2,
-            "resolver": UploadFlixResolver,
-            "max_connections": 10,
-        }
-        for host in UPLOAD_FLIX_HOSTS
-    },
-    "anonfile.de": {
-        "download_with_aria2c": True,
-        "resolver": AnonFileResolver,
-        "max_connections": 5 if bool(os.getenv('ANONFILE_USE_PREMIUM')) else 1, 
-        "max_concurrent": 5 if bool(os.getenv('ANONFILE_USE_PREMIUM')) else 10,
-        "use_random_proxy": not bool(os.getenv('ANONFILE_USE_PREMIUM')),
-    },
-    "gofile.io": {
-        "max_concurrent": 5,
-        "max_connections": 5,
-        "download_with_aria2c": True,
-        "use_random_proxy": False,
-        "use_headers": True,
-        "resolver": GofileResolver
-    }, # ok
-    "1fichier.com": { 
-        "download_with_aria2c": True,
-        "max_concurrent": 1,
-        "max_connections": 1, 
-        "resolver": OneFichierResolver
-    }, 
-    "filedot.to": {
-        "ignore_ssl": True,
-        "max_concurrent": 5, 
-        "max_connections": 1, 
-        "resolver": FiledotResolver
-    },
-    "desiupload.co": {
-        "ignore_ssl": True,
-        "download_with_aria2c": True,
-        "max_concurrent": 5, 
-        "resolver": DesiUploadResolver
-    },
-    "pixeldrain.com": {
-        "download_with_aria2c": True,
-        "max_concurrent": 10, 
-        "max_connections": 3, 
-        "resolver": PixelDrainResolver
-    },
-    "axfc.net": {
-        "download_with_aria2c": True,
-        "use_random_proxy": False,
-        "max_connections": 10, 
-        "resolver": AxfcResolver
-    },
-    "filemirage.com": {
-        "download_with_aria2c": True,
-        "max_concurrent": 5, 
-        "max_connections": 5,
-        "resolver": FileMirageResolver
-    },
-    "upload.ee": {
-        "download_with_aria2c": True,
-        "max_concurrent": 5, 
-        "max_connections": 5, 
-        "use_random_proxy": False,
-        "resolver": UploadeeResolver
-    },
-    "uploadhive.com": {
-        "max_connections": 1,
-        "max_concurrent": 10,
-        "download_with_aria2c": True,
-        "resolver": UploadHiveResolver,
-        "use_random_proxy": False
-    }, 
-    "send.now": { # SPEED 10MB/s
-        "max_connections": 1,
-        "max_concurrent": 5,
-        "download_with_aria2c": True,
-        "resolver": SendNowResolver,
-    },
-    "krakenfiles.com": { # SPEED 5MB/s
-        "max_connections": 10,
-        "max_concurrent": 5,
-        "download_with_aria2c": True,
-        "resolver": KrakenFilesResolver,
-    },
-    "default": {
-        "download_with_aria2c": True,
-        "max_connections": 5,
-        "max_concurrent": 3,
-        "resolver": PassThroughResolver,
-    }, 
-}
-
+HOSTS_HANLDER = _config_data["hosts_handler"]
+UPLOAD_FLIX_HOSTS = _config_data["upload_flix_hosts"]
+SUPPORTED_HOSTS = _config_data["supported_hosts"]
+pass_through_hosts = _config_data["pass_through_hosts"]
 
 MAX_COCURRENT_REQUEST_INFO = 5
 
@@ -274,13 +122,9 @@ class Downloader():
                 logger.debug("download info its not a list")
                 await self.process_download(options, host, download_dir, download_info)
         except Exception as e:
-            # Add context to the error
             error_type = type(e).__name__
             error_msg = str(e)
-            
-            # Create a more descriptive error message
             if "HTTP" in error_msg or "Network" in error_msg or "error getting download info" in error_msg:
-                # Already has context, just re-raise
                 raise
             else:
                 # Add more context

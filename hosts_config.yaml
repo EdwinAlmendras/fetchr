@@ -1,0 +1,166 @@
+# Configuración de hosts para fetchr
+# Este archivo define la configuración de cada host soportado
+
+# Hosts de UploadFlix (se expanden automáticamente)
+upload_flix_hosts:
+  - "uploadflix.cc"
+  - "uploadflix.net"
+  - "uploadflix.com"
+  - "1uploadflix.net"
+  - "dl.uploadflix.com"
+
+# Lista de hosts soportados (ordenados por prioridad)
+# Los hosts se procesan en el orden en que aparecen aquí
+supported_hosts:
+  - "anonfile.de"
+  - "pixeldrain.com"
+  - "filedot.to"
+  - "ranoz.gg"
+  - "gofile.io"
+  - "filemirage.com"
+  - "uploadbay.net"
+  - "pomf2.lain.la"
+  - "www.upload.ee"
+  - "upload.ee"
+  - "desiupload.co"
+  - "send.now"
+  - "krakenfiles.com"
+  - "axfc.net"
+  - "uploadhive.com"
+  # Los hosts de upload_flix_hosts se añaden automáticamente aquí
+  - "1fichier.com"
+
+# Hosts de paso directo (pass-through)
+pass_through_hosts:
+  - "uploadbay.net"
+  - "clicknupload.net"
+  - "clicknupload.click"
+  - "pomf2.lain.la"
+
+# Configuración de hosts individuales
+hosts:
+  ranoz.gg:
+    max_concurrent: 5
+    download_with_aria2c: true
+    max_connections: 5
+    resolver: "RanozResolver"
+
+  st7.ranoz.gg:
+    download_with_aria2c: true
+    max_concurrent: 5
+    max_connections: 5
+    resolver: "PassThroughResolver"
+
+  clicknupload.net:
+    max_concurrent: 1
+    max_connections: 5
+    resolver: "PassThroughResolver"
+
+  uploadbay.net:
+    max_concurrent: 5
+    max_connections: 5
+    download_with_aria2c: true
+    resolver: "PassThroughResolver"
+
+  pomf2.lain.la:
+    max_concurrent: 5
+    max_connections: 5
+    download_with_aria2c: true
+    resolver: "PassThroughResolver"
+
+  # Configuración para hosts de UploadFlix (se aplica a todos los hosts en upload_flix_hosts)
+  upload_flix_template:
+    ignore_ssl: true
+    max_concurrent: 2
+    resolver: "UploadFlixResolver"
+    max_connections: 10
+
+  anonfile.de:
+    download_with_aria2c: true
+    resolver: "AnonFileResolver"
+    # Estas configuraciones se evalúan dinámicamente basadas en ANONFILE_USE_PREMIUM
+    # max_connections: 5 si ANONFILE_USE_PREMIUM, else 1
+    # max_concurrent: 5 si ANONFILE_USE_PREMIUM, else 10
+    # use_random_proxy: not ANONFILE_USE_PREMIUM
+    max_connections_premium: 1
+    max_connections_free: 1
+    max_concurrent_premium: 1
+    max_concurrent_free: 10
+    use_random_proxy_premium: false
+    use_random_proxy_free: true
+
+  gofile.io:
+    max_concurrent: 5
+    max_connections: 1
+    download_with_aria2c: true
+    use_random_proxy: false
+    use_headers: true
+    resolver: "GofileResolver"
+
+  "1fichier.com":
+    download_with_aria2c: true
+    max_concurrent: 1
+    max_connections: 1
+    resolver: "OneFichierResolver"
+
+  filedot.to:
+    ignore_ssl: true
+    max_concurrent: 5
+    max_connections: 1
+    resolver: "FiledotResolver"
+
+  desiupload.co:
+    ignore_ssl: true
+    download_with_aria2c: true
+    max_concurrent: 5
+    resolver: "DesiUploadResolver"
+
+  pixeldrain.com:
+    download_with_aria2c: true
+    max_concurrent: 10
+    max_connections: 3
+    resolver: "PixelDrainResolver"
+
+  axfc.net:
+    download_with_aria2c: true
+    use_random_proxy: false
+    max_connections: 10
+    resolver: "AxfcResolver"
+
+  filemirage.com:
+    download_with_aria2c: true
+    max_concurrent: 5
+    max_connections: 5
+    resolver: "FileMirageResolver"
+
+  upload.ee:
+    download_with_aria2c: true
+    max_concurrent: 5
+    max_connections: 5
+    use_random_proxy: false
+    resolver: "UploadeeResolver"
+
+  uploadhive.com:
+    max_connections: 1
+    max_concurrent: 10
+    download_with_aria2c: true
+    resolver: "UploadHiveResolver"
+    use_random_proxy: false
+
+  send.now:
+    max_connections: 1
+    max_concurrent: 5
+    download_with_aria2c: true
+    resolver: "SendNowResolver"
+
+  krakenfiles.com:
+    max_connections: 10
+    max_concurrent: 5
+    download_with_aria2c: true
+    resolver: "KrakenFilesResolver"
+
+  default:
+    download_with_aria2c: true
+    max_connections: 5
+    max_concurrent: 3
+    resolver: "PassThroughResolver"
