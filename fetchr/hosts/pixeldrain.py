@@ -37,14 +37,17 @@ class PixelDrainResolver(AbstractHostResolver):
                 filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
 
         async with self.session.get(url, timeout=30) as response:
-            data = await response.json()
-            if not data['success']:
-                message = data['message']
-                if message == "file_rate_limited_captcha_required":
-                    direct_link = await get_direct_link(url)
+            try:
+                data = await response.json()
+                if not data['success']:
+                    message = data['message']
+                    if message == "file_rate_limited_captcha_required":
+                        direct_link = await get_direct_link(url)
+                    else:
+                        raise Exception(message)
                 else:
-                    raise Exception(message)
-            else:
+                    direct_link = url
+            except:
                 direct_link = url
         
         download_info = DownloadInfo(
