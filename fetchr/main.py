@@ -122,6 +122,7 @@ HOSTS_HANLDER = {
         "resolver": FiledotResolver
     },
     "desiupload.co": {
+        "ignore_ssl": True,
         "download_with_aria2c": True,
         "max_concurrent": 5, 
         "resolver": DesiUploadResolver
