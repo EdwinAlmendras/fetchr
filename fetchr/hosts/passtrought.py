@@ -9,7 +9,8 @@ logger = logging.getLogger("downloader.passtrought")
 
 REDIRECT_HOSTS = [
     "sd2y3ekfioqfag45vmufbcezz44jfdz4ihefmogjfjih5sadmbmxzaid.onion", 
-    "cpftwf66tdxnhrtau6t4hvm5sznlglv4r4ha5uxmc7ulhmcgry3mttyd"
+    "cpftwf66tdxnhrtau6t4hvm5sznlglv4r4ha5uxmc7ulhmcgry3mttyd",
+    "gofilebzoq7kacpfve5sddz3o27ubclfqvnuxgb3yhoawon4w5tysgid.onion"
 ]
 
 

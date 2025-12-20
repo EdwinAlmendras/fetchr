@@ -136,6 +136,11 @@ class Downloader():
     async def process_download(self, options, host, download_dir, download_info):
         try:
             if self.check_exists(download_dir, download_info):
+                # check if exists .aria2c
+                
+                if download_info.download_url.endswith(".aria2c"):
+                    logger.debug(f"File {download_info.filename} already exists, skipping download")
+                    return True
                 logger.debug(f"File {download_info.filename} already exists, skipping download")
                 return True
             
