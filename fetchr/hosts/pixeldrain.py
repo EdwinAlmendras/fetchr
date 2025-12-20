@@ -28,13 +28,7 @@ class PixelDrainResolver(AbstractHostResolver):
             
         url = url.replace("/u/", "/api/file/")
         
-        async with self.session.head(url, timeout=30) as response:
-            headers_info = dict(response.headers)
-            if 'Content-Length' in headers_info:
-                filesize_bytes = int(headers_info['Content-Length'])
-                filesize = filesize_bytes
-            if 'Content-Disposition' in headers_info:
-                filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
+
 
         async with self.session.get(url, timeout=30) as response:
             try:
@@ -49,7 +43,15 @@ class PixelDrainResolver(AbstractHostResolver):
                     direct_link = url
             except:
                 direct_link = url
-        
+                
+        async with self.session.head(url, timeout=30) as response:
+            headers_info = dict(response.headers)
+            if 'Content-Length' in headers_info:
+                filesize_bytes = int(headers_info['Content-Length'])
+                filesize = filesize_bytes
+            if 'Content-Disposition' in headers_info:
+                filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
+                
         download_info = DownloadInfo(
             filename=filename,
             size=filesize,
