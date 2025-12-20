@@ -28,7 +28,7 @@ class PixelDrainResolver(AbstractHostResolver):
             
         url = url.replace("/u/", "/api/file/")
         
-        async with self.session.head(url, timeout=5) as response:
+        async with self.session.head(url, timeout=30) as response:
             headers_info = dict(response.headers)
             if 'Content-Length' in headers_info:
                 filesize_bytes = int(headers_info['Content-Length'])
@@ -36,7 +36,7 @@ class PixelDrainResolver(AbstractHostResolver):
             if 'Content-Disposition' in headers_info:
                 filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
 
-        async with self.session.get(url, timeout=5) as response:
+        async with self.session.get(url, timeout=30) as response:
             data = await response.json()
             if not data['success']:
                 message = data['message']
