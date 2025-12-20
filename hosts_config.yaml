@@ -25,10 +25,10 @@ supported_hosts:
   - "desiupload.co"
   - "send.now"
   - "krakenfiles.com"
-  - "axfc.net"
   - "uploadhive.com"
-  # Los hosts de upload_flix_hosts se añaden automáticamente aquí
+  - "isupload.net"
   - "1fichier.com"
+  - "axfc.net"
 
 # Hosts de paso directo (pass-through)
 pass_through_hosts:
@@ -82,11 +82,11 @@ hosts:
     # max_connections: 5 si ANONFILE_USE_PREMIUM, else 1
     # max_concurrent: 5 si ANONFILE_USE_PREMIUM, else 10
     # use_random_proxy: not ANONFILE_USE_PREMIUM
-    max_connections_premium: 1
+    max_connections_premium: 3
     max_connections_free: 1
-    max_concurrent_premium: 1
+    max_concurrent_premium: 3
     max_concurrent_free: 10
-    use_random_proxy_premium: false
+    use_random_proxy_premium: true
     use_random_proxy_free: true
 
   gofile.io:

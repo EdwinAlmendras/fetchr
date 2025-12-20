@@ -56,6 +56,7 @@ class UploadHiveResolver(AbstractHostResolver):
         
         NOT_FOUND_MESSAGES = [
             "The file was removed by administrator",
+            "removed by administrator"
             "No such file",
             "File not found",
         ]
@@ -69,7 +70,6 @@ class UploadHiveResolver(AbstractHostResolver):
         direct_url = anchor.get("href")
         filename = direct_url.split("/")[-1]
         response = await self.session.get(direct_url)
-        print(direct_url)        
         response.raise_for_status()
         size = int(response.headers.get("Content-length"))
         return DownloadInfo(direct_url, filename, size, {})
