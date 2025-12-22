@@ -43,15 +43,21 @@ class PassThroughResolver(AbstractHostResolver):
             logger.info(f"Resolved url: {url} by redirect")
             client = self.session
         
-        response = await client.head(url, *args, **kwargs)
-        # if response code 405     
-        if response.status == 405:
-            logger.warning(f"405 error, requesting url: {url}")
-            response = await client.get(url, *args, **kwargs)
-            
-        response.raise_for_status()
-        content_disp = response.headers.get("Content-Disposition")
 
+        while True:
+            response = await client.head(url, *args, **kwargs)
+            # if response code 405     
+            if response.status == 405:
+                logger.warning(f"405 error, requesting url: {url}")
+                response = await client.get(url, *args, **kwargs)
+            elif response.status == 302:
+                url = str(response.url)
+                logger.info(f"Redirected url: {url}")
+                response = await client.head(url, *args, **kwargs)
+            if response.status == 200:
+                content_disp = response.headers.get("Content-Disposition")
+                break
+            
         filename = None
         if content_disp:
             cdl = content_disp.lower()
