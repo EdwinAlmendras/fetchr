@@ -51,6 +51,8 @@ class PassThroughResolver(AbstractHostResolver):
                 logger.warning(f"405 error, requesting url: {url}")
                 response = await client.get(url, *args, **kwargs)
             if response.status == 200:
+                url = str(response.url)
+                logger.info(f"Final download url: {url}")
                 content_disp = response.headers.get("Content-Disposition")
                 break
             else:
