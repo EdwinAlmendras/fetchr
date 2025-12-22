@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from ..types import DownloadInfo
 from ..host_resolver import AbstractHostResolver
 import logging
+import asyncio
+import datetime
+from typing import Optional, Union, List
+
 logger = logging.getLogger("downloader.gofile")
 
 class GoFileError(Exception):
@@ -34,12 +38,60 @@ class FileInfo:
     link: str
     headers: dict
 
+
+class _GoFileTokenManager:
+    """Singleton-style token manager for GoFile API.
+
+    Caches a token and reuses it until TTL expires. Uses an async lock
+    to avoid concurrent token requests.
+    """
+    def __init__(self, base_url: str = "https://api.gofile.io", ttl_seconds: int = 3600):
+        self.base_url = base_url
+        self._token: Optional[str] = None
+        self._obtained_at: Optional[datetime.datetime] = None
+        self._ttl = ttl_seconds
+        self._lock = asyncio.Lock()
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def get_token(self, force_new: bool = False) -> str:
+        async with self._lock:
+            if not force_new and self._token and self._obtained_at:
+                age = (datetime.datetime.utcnow() - self._obtained_at).total_seconds()
+                if age < self._ttl:
+                    return self._token
+
+            if not self._session:
+                self._session = aiohttp.ClientSession()
+
+            try:
+                async with self._session.post(f"{self.base_url}/accounts") as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    if data.get("status") == "ok":
+                        self._token = data["data"]["token"]
+                        self._obtained_at = datetime.datetime.utcnow()
+                        return self._token
+                    else:
+                        raise TokenError(f"Failed to get token: {data.get('status')}")
+            except aiohttp.ClientError as e:
+                raise TokenError(f"HTTP error while getting token: {e}")
+            except Exception as e:
+                raise TokenError(f"Unexpected error while getting token: {e}")
+
+    async def close(self):
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+
+# module-level manager instance (acts as singleton)
+_gofile_token_manager = _GoFileTokenManager()
+
 class GofileResolver(AbstractHostResolver):
     def __init__(self):
         self.base_url = "https://api.gofile.io"
-        self.session = None
-        self.token = None
-        self.token_obtained = False
+        # resolver-specific session (used for content requests)
+        self.session: Optional[aiohttp.ClientSession] = None
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
@@ -50,27 +102,8 @@ class GofileResolver(AbstractHostResolver):
             await self.session.close()
 
     async def _get_token(self, force_new: bool = False) -> str:
-        """Gets a token from GoFile API"""
-        if self.token_obtained and self.token and not force_new:
-            return self.token
-        
-        if not self.session:
-            self.session = aiohttp.ClientSession()
-            
-        try:
-            async with self.session.post(f"{self.base_url}/accounts") as response:
-                response.raise_for_status()
-                data = await response.json()
-                if data.get("status") == "ok":
-                    self.token = data["data"]["token"]
-                    self.token_obtained = True
-                    return self.token
-                else:
-                    raise TokenError(f"Failed to get token: {data.get('status')}")
-        except aiohttp.ClientError as e:
-            raise TokenError(f"HTTP error while getting token: {e}")
-        except Exception as e:
-            raise TokenError(f"Unexpected error while getting token: {e}")
+        """Delegate token retrieval to the module-level token manager."""
+        return await _gofile_token_manager.get_token(force_new=force_new)
 
     async def _get_file_info(self, file_id: str) -> FileInfo:
         """Gets information about a file or folder in GoFile"""
@@ -79,7 +112,9 @@ class GofileResolver(AbstractHostResolver):
         referer = "https://gofile.io/"
         url = f"{self.base_url}/contents/{file_id}?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1"
         print(f"url: {url}")
-        headers={"Authorization": f"Bearer {self.token}", "Referer": referer, "X-Website-Token": "4fd6sg89d7s6"}
+        # get shared token from the singleton manager
+        token = await _gofile_token_manager.get_token()
+        headers={"Authorization": f"Bearer {token}", "Referer": referer, "X-Website-Token": "4fd6sg89d7s6"}
         print(f"headers: {headers}")
         async with self.session.get(url, headers=headers) as response:
             response.raise_for_status()
@@ -118,9 +153,8 @@ class GofileResolver(AbstractHostResolver):
 
     async def get_download_info(self, url: str) -> DownloadInfo:
         """Resolves a GoFile link and returns download information"""
-        
-        if not self.token:
-            self.token = await self._get_token()
+        # ensure we have a valid token (manager caches/reuses it)
+        token = await self._get_token()
             # Extract ID from URL
         if "/d/" not in url:
             raise InvalidURLError(f"Invalid GoFile URL format: {url}")
@@ -135,7 +169,7 @@ class GofileResolver(AbstractHostResolver):
                     file.name, 
                     file.size, 
                     {
-                        "Cookie": f"accountToken={self.token}"
+                        "Cookie": f"accountToken={token}"
                     }
                 )
                 dl_infos.append(dl_info)
@@ -146,7 +180,7 @@ class GofileResolver(AbstractHostResolver):
             file_info.name, 
             file_info.size, 
             {
-                "Cookie": f"accountToken={self.token}"
+                "Cookie": f"accountToken={token}"
             }
         )
 
