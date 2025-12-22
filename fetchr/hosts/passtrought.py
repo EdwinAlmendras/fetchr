@@ -45,7 +45,7 @@ class PassThroughResolver(AbstractHostResolver):
          """
 
         while True:
-            response = await client.get(url, follow_redirects=True, *args, **kwargs)
+            response = await client.get(url, *args, **kwargs)
             # if response code 405     
             if response.status == 405:
                 logger.warning(f"405 error, requesting url: {url}")
@@ -54,7 +54,7 @@ class PassThroughResolver(AbstractHostResolver):
                 content_disp = response.headers.get("Content-Disposition")
                 break
             else:
-                logger.warning(f"Unexpected status code {response.status} for url: {url}")
+                logger.warning(f"Unexpected status code {response.status} for url: {url}, response url {response.url}")
                 raise Exception(f"Failed to get download info, status code: {response.status}")
 
         filename = None
