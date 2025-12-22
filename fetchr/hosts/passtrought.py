@@ -36,28 +36,27 @@ class PassThroughResolver(AbstractHostResolver):
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
         client = get_tor_client() if "onion" in url else self.session
         logger.info(f"Getting download info for url: {url}, check protector host: {REDIRECT_HOSTS}")
-        if any(host in url for host in REDIRECT_HOSTS):
+        """  if any(host in url for host in REDIRECT_HOSTS):
             logger.info("URL match in protectors")
             response = await client.get(url)
             url = str(response.url)
             logger.info(f"Resolved url: {url} by redirect")
             client = self.session
-        
+         """
 
         while True:
-            response = await client.head(url, *args, **kwargs)
+            response = await client.get(url, follow_redirects=True, *args, **kwargs)
             # if response code 405     
             if response.status == 405:
                 logger.warning(f"405 error, requesting url: {url}")
                 response = await client.get(url, *args, **kwargs)
-            elif response.status == 302:
-                url = str(response.url)
-                logger.info(f"Redirected url: {url}")
-                response = await client.head(url, *args, **kwargs)
             if response.status == 200:
                 content_disp = response.headers.get("Content-Disposition")
                 break
-            
+            else:
+                logger.warning(f"Unexpected status code {response.status} for url: {url}")
+                raise Exception(f"Failed to get download info, status code: {response.status}")
+
         filename = None
         if content_disp:
             cdl = content_disp.lower()
