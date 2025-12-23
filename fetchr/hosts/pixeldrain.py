@@ -28,35 +28,49 @@ class PixelDrainResolver(AbstractHostResolver):
             
         url = url.replace("/u/", "/api/file/")
         
-
-
-        async with self.session.get(url, timeout=30) as response:
+        async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            if response.status != 200:
+                try:
+                    data = await response.json()
+                    error_msg = data.get('message', f"HTTP {response.status}")
+                except Exception:
+                    error_msg = f"HTTP {response.status}"
+                raise Exception(f"Pixeldrain API error: {error_msg}")
+            
             try:
                 data = await response.json()
-                if not data['success']:
-                    message = data['message']
+                if not data.get('success', True):
+                    message = data.get('message', 'Unknown error')
                     if message == "file_rate_limited_captcha_required":
                         direct_link = await get_direct_link(url)
                     else:
-                        raise Exception(message)
+                        raise Exception(f"Pixeldrain API error: {message}")
                 else:
                     direct_link = url
-            except:
+            except aiohttp.ContentTypeError:
                 direct_link = url
-                
-        async with self.session.head(url, timeout=30) as response:
+        
+        async with self.session.head(direct_link, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            response.raise_for_status()
             headers_info = dict(response.headers)
-            if 'Content-Length' in headers_info:
-                filesize_bytes = int(headers_info['Content-Length'])
-                filesize = filesize_bytes
-            if 'Content-Disposition' in headers_info:
+            
+            if 'Content-Length' not in headers_info:
+                raise Exception(f"Missing Content-Length header for {url}")
+            filesize = int(headers_info['Content-Length'])
+            
+            if 'Content-Disposition' not in headers_info:
+                raise Exception(f"Missing Content-Disposition header for {url}")
+            try:
                 filename = headers_info['Content-Disposition'].split('filename=')[1].split(';')[0].strip('"')
+            except (IndexError, KeyError) as e:
+                raise Exception(f"Failed to parse filename from Content-Disposition for {url}") from e
                 
         download_info = DownloadInfo(
             filename=filename,
             size=filesize,
             download_url=direct_link,
-            headers=response.headers,
+            headers={},
         )
+
         return download_info
     
