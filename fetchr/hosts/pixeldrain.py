@@ -3,7 +3,7 @@ import aiohttp
 from fetchr.types import DownloadInfo
 from fetchr.host_resolver import AbstractHostResolver
 from fetchr.resolver import get_direct_link
-
+from fetchr.network.proxy import get_aiohttp_proxy_connector
 logger = logging.getLogger("fetchr.hosts.pixeldrain")
 
 class PixelDrainResolver(AbstractHostResolver):
@@ -15,10 +15,7 @@ class PixelDrainResolver(AbstractHostResolver):
             'Upgrade-Insecure-Requests': '1',
         }
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(
-            timeout=self.timeout,
-            headers=self.headers,
-        )
+        self.session = get_aiohttp_proxy_connector()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -63,7 +60,6 @@ class PixelDrainResolver(AbstractHostResolver):
         async with self.session.head(direct_link, timeout=aiohttp.ClientTimeout(total=10)) as response:
             response.raise_for_status()
             headers_info = dict(response.headers)
-            
             if 'Content-Length' not in headers_info:
                 logger.error(f"Missing Content-Length header for {url}")
                 raise Exception(f"Missing Content-Length header for {url}")
