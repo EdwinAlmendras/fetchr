@@ -165,6 +165,8 @@ hosts:
     max_concurrent: 3
     download_with_aria2c: true
     resolver: "UsersDriveResolver"
+    use_random_proxy: false
+
 
   default:
     download_with_aria2c: true

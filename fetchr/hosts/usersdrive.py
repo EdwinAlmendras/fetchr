@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 class UsersDriveResolver(AbstractHostResolver):
     
     def __init__(self):
-        proxy = get_random_proxy()
-        self.proxy = proxy
-        self.session = aiohttp.ClientSession(proxy=proxy)
+        self.session = aiohttp.ClientSession()
     
     async def __aenter__(self):
         return self
