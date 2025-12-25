@@ -25,6 +25,7 @@ RESOLVER_MODULE_MAP = {
     "UploadeeResolver": "uploadee",
     "SendNowResolver": "sendnow",
     "KrakenFilesResolver": "krakenfiles",
+    "UsersDriveResolver": "usersdrive",
 }
 
 # Cache para almacenar las clases ya cargadas

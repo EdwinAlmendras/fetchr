@@ -27,7 +27,8 @@ supported_hosts:
   - "krakenfiles.com"
   - "uploadhive.com"
   - "isupload.net"
-  - "1fichier.com"
+  - "krakenfiles.com"
+  - "usersdrive.com"
   - "axfc.net"
 
 # Hosts de paso directo (pass-through)
@@ -90,7 +91,7 @@ hosts:
     use_random_proxy_free: true
 
   gofile.io:
-    max_concurrent: 5
+    max_concurrent: 1
     max_connections: 1
     download_with_aria2c: true
     use_random_proxy: false
@@ -158,6 +159,12 @@ hosts:
     max_concurrent: 5
     download_with_aria2c: true
     resolver: "KrakenFilesResolver"
+
+  usersdrive.com:
+    max_connections: 5
+    max_concurrent: 3
+    download_with_aria2c: true
+    resolver: "UsersDriveResolver"
 
   default:
     download_with_aria2c: true
