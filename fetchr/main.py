@@ -136,11 +136,6 @@ class Downloader():
     async def process_download(self, options, host, download_dir, download_info):
         try:
             if self.check_exists(download_dir, download_info):
-                # check if exists .aria2c
-                
-                if download_info.download_url.endswith(".aria2c"):
-                    logger.debug(f"File {download_info.filename} already exists, skipping download")
-                    return True
                 logger.debug(f"File {download_info.filename} already exists, skipping download")
                 return True
             
@@ -164,13 +159,25 @@ class Downloader():
             raise Exception(error_msg) from e
     
     def check_exists(self, download_dir, download_info):
-        if download_info.filename and download_dir.joinpath(download_info.filename).exists():
-            if download_info.size == download_dir.joinpath(download_info.filename).stat().st_size:
-                logger.info(f"File {download_info.filename} already exists and size is the same")
-                return True
-            else:
-                logger.info(f"File {download_info.filename} already exists and size is different")
-                return False
+        if not download_info.filename:
+            return False
+        
+        file_path = download_dir.joinpath(download_info.filename)
+        aria2_control_file = download_dir.joinpath(f"{download_info.filename}.aria2")
+        
+        if not file_path.exists():
+            return False
+        
+        if aria2_control_file.exists():
+            logger.info(f"File {download_info.filename} has .aria2 control file, download incomplete")
+            return False
+        
+        if download_info.size == file_path.stat().st_size:
+            logger.info(f"File {download_info.filename} already exists and size matches")
+            return True
+        
+        logger.info(f"File {download_info.filename} exists but size differs")
+        return False
     
     
     def _get_options(self, HOST_MANAGER, download_dir, download_info, resolver, callback_progress):
