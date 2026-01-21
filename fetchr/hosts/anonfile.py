@@ -25,6 +25,7 @@ class WrongCaptcha(Exception):
 
 
 class AnonFileResolver(AbstractHostResolver):
+    host = "anonfile.de"
     def __init__(self, timeout: int = 30):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.use_premium = os.getenv('ANONFILE_USE_PREMIUM', 'false').lower() == 'true'

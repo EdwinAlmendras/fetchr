@@ -13,6 +13,9 @@ logger = logging.getLogger("downloader.filemirage")
 
 
 class FileMirageResolver(AbstractHostResolver):
+    host = "filemirage.com"
+
+    
     
     def __init__(self):
         self.session = aiohttp.ClientSession()

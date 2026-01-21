@@ -88,6 +88,7 @@ class _GoFileTokenManager:
 _gofile_token_manager = _GoFileTokenManager()
 
 class GofileResolver(AbstractHostResolver):
+    host = "gofile.io"
     def __init__(self):
         self.base_url = "https://api.gofile.io"
         # resolver-specific session (used for content requests)

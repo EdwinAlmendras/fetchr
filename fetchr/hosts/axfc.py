@@ -50,6 +50,7 @@ async def captcha_solver(session: aiohttp.ClientSession, captcha_url: str) -> st
     return code
 
 class AxfcResolver(AbstractHostResolver):
+    host = "axfc.net"
     async def __aenter__(self):
         print("Entering AxfcResolver")
         self.session = aiohttp.ClientSession()

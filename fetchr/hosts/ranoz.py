@@ -36,6 +36,7 @@ class FileInfo:
     upload_state: str
 
 class RanozResolver(AbstractHostResolver):
+    host = "ranoz.gg"
     def __init__(self):
         self.cdn = "st7"
         self.dl_folder = ""

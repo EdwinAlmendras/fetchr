@@ -43,7 +43,7 @@ PROXIES_PATH = Path(get_env_or_default("FETCHR_PROXIES_PATH", str(CONFIG_DIR / "
 
 # Service tokens
 DEBRID_GATEWAY = os.getenv("FETCHR_DEBRID_GATEWAY") or os.getenv("DEBRID_GATEWAY")
-REALDEBRID_BEARER_TOKEN = os.getenv("FETCHR_REALDEBRID_TOKEN") or os.getenv("REALDEBRID_BEARER_TOKEN")
+REALDEBRID_BEARER_TOKEN = os.getenv("FETCHR_REALDEBRID_TOKEN") or os.getenv("REALDEBRID_BEARER_TOKEN") or os.getenv("REAL_DEBRID_TOKEN")
 
 # Tor settings
 TOR_PORT = int(os.getenv("FETCHR_TOR_PORT", "9050"))

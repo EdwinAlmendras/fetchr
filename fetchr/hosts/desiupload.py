@@ -1,64 +1,20 @@
-import aiohttp
+import logging
 import asyncio
 from bs4 import BeautifulSoup
-from typing import Dict
 from ..types import DownloadInfo
-from ..host_resolver import AbstractHostResolver
+from .common import BaseFormHostResolver
 from fetchr.captcha import solve_css_position_captcha
 
-class DesiUploadResolver(AbstractHostResolver):
-    def __init__(self, timeout: int = 30):
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    async def __aenter__(self):
-        self.session = aiohttp.ClientSession(
-            timeout=self.timeout,
-            headers=self.headers,
-            connector=aiohttp.TCPConnector(ssl=False)
-        )
-        return self
+logger = logging.getLogger(__file__)
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            await self.session.close()
-            
-    def _extract_form_data(self, soup: BeautifulSoup, form_selector: str = 'form') -> Dict[str, str]:
-        """Extrae datos de formularios ocultos"""
-        form = soup.find('form')
-        if not form:
-            raise ValueError("No se encontró formulario en la página")
-        
-        form_data = {}
-        for input_tag in form.find_all('input', type='hidden'):
-            name = input_tag.get('name')
-            value = input_tag.get('value', '')
-            if name:
-                form_data[name] = value
-        
-        return form_data
-    
-
-
-
+class DesiUploadResolver(BaseFormHostResolver):
+    host = "desiupload.co"
     async def get_download_info(self, url: str) -> DownloadInfo:
         if not self.session:
             raise RuntimeError("Usar dentro de un context manager: async with AnonFileDownloader() as downloader:")
-        
-        print(f"🔍 Iniciando descarga de: {url}")
-        
-        # PASO 1: Obtener página inicial
-        print("📄 Paso 1: Obteniendo página inicial...")
+        logger.info(f"Starting downloading url {url}")
         async with self.session.get(url) as response:
-            if response.status != 200:
-                raise ValueError(f"Error al acceder a la página inicial: {response.status}")
+            response.raise_for_status()
             html_content = await response.text()
             soup = BeautifulSoup(html_content, 'html.parser')
         
@@ -89,7 +45,7 @@ class DesiUploadResolver(AbstractHostResolver):
         form_data = self._extract_form_data(soup)
         form_data['adblock_detected'] = '0'
         captcha_code = solve_css_position_captcha(captcha_div)
-        form_data['code'] = int(captcha_code)
+        form_data['code'] = str(captcha_code)
 
         # await 7 seconds
         await asyncio.sleep(15)
@@ -103,7 +59,13 @@ class DesiUploadResolver(AbstractHostResolver):
                 f.write(html_content)
         
         anchor = soup.select_one("#direct_link a")
+        if not anchor:
+             raise ValueError("Download link not found")
+             
         direct_url = anchor.get("href")
+        if not isinstance(direct_url, str):
+             raise ValueError("Invalid download link")
+             
         # extract filename from direct_url
         filename = direct_url.split("/")[-1]
         print(direct_url)

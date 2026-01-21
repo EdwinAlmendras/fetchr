@@ -4,6 +4,7 @@ from ..host_resolver import AbstractHostResolver
 import cloudscraper
 
 class SendNowResolver(AbstractHostResolver):
+    host = "send.now"
     def __init__(self, timeout: int = 5):
         self.timeout = timeout
         self.headers = {

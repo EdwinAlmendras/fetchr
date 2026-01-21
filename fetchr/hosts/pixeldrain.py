@@ -7,6 +7,7 @@ from fetchr.network.proxy import get_aiohttp_proxy_connector
 logger = logging.getLogger("fetchr.hosts.pixeldrain")
 
 class PixelDrainResolver(AbstractHostResolver):
+    host = "pixeldrain.com"
     def __init__(self, timeout: int = 5):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.headers = {

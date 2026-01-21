@@ -21,7 +21,8 @@ locker = TimeLocker(60)
 
 
 class OneFichierResolver(AbstractHostResolver):
-    
+    host = "1fichier.com"
+
     def __init__(self):
         proxy = get_random_proxy()
         self.proxy = proxy

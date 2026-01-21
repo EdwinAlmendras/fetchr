@@ -14,6 +14,7 @@ logger = logging.getLogger("downloader.krakenfiles")
 BASE_URL = DEBRID_GATEWAY
 
 class KrakenFilesResolver(AbstractHostResolver):
+    host = "krakenfiles.com"
     
     def __init__(self):
         proxy = get_random_proxy()

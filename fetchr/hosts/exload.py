@@ -14,6 +14,7 @@ EXLOAD_COUNTDOWN_SECONDS = 60
 
 
 class ExloadResolver(AbstractHostResolver):
+    host = "ex-load.com"
     def __init__(self, timeout: int = 120, skip_countdown: bool = False, max_retries: int = 5):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.skip_countdown = skip_countdown
