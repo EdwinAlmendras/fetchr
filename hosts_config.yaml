@@ -12,7 +12,7 @@ upload_flix_hosts:
 # Lista de hosts soportados (ordenados por prioridad)
 # Los hosts se procesan en el orden en que aparecen aquí
 supported_hosts:
-  - "anonfile.de"
+  - "1fichier.com"
   - "pixeldrain.com"
   - "filedot.to"
   - "ranoz.gg"
@@ -20,6 +20,7 @@ supported_hosts:
   - "filemirage.com"
   - "uploadbay.net"
   - "pomf2.lain.la"
+  - "anonfile.de"
   - "www.upload.ee"
   - "upload.ee"
   - "desiupload.co"
@@ -30,6 +31,7 @@ supported_hosts:
   - "krakenfiles.com"
   - "usersdrive.com"
   - "axfc.net"
+  - "ex-load.com"
 
 # Hosts de paso directo (pass-through)
 pass_through_hosts:
@@ -100,9 +102,11 @@ hosts:
 
   "1fichier.com":
     download_with_aria2c: true
-    max_concurrent: 1
-    max_connections: 1
     resolver: "OneFichierResolver"
+    max_connections_realdebrid: 10
+    max_connections_free: 1
+    max_concurrent_realdebrid: 5
+    max_concurrent_free: 1
 
   filedot.to:
     ignore_ssl: true
@@ -167,6 +171,15 @@ hosts:
     resolver: "UsersDriveResolver"
     use_random_proxy: false
 
+  ex-load.com:
+    max_connections: 1              # IP-bound token, single connection required
+    max_concurrent: 10
+    download_with_aria2c: true
+    resolver: "ExloadResolver"
+    use_random_proxy: true          # Uses same proxy for resolve and aria2c
+    ignore_ssl: true
+    max_retries: 5                  # Retry due to backend load balancing
+    aria2c_max_tries: 5             # Retry in aria2c for 404s
 
   default:
     download_with_aria2c: true

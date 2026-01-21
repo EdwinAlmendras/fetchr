@@ -26,6 +26,7 @@ RESOLVER_MODULE_MAP = {
     "SendNowResolver": "sendnow",
     "KrakenFilesResolver": "krakenfiles",
     "UsersDriveResolver": "usersdrive",
+    "ExloadResolver": "exload",
 }
 
 # Cache para almacenar las clases ya cargadas
@@ -149,6 +150,16 @@ def load_hosts_config(config_path: Path = None) -> Dict[str, Any]:
                 "max_connections": host_config.get("max_connections_premium" if use_premium else "max_connections_free"),
                 "max_concurrent": host_config.get("max_concurrent_premium" if use_premium else "max_concurrent_free"),
                 "use_random_proxy": host_config.get("use_random_proxy_premium" if use_premium else "use_random_proxy_free"),
+            }
+        elif host == "1fichier.com":
+            use_realdebrid = bool(os.getenv('REALDEBRID_BEARER_TOKEN') or os.getenv('FETCHR_REALDEBRID_TOKEN'))
+            resolver_name = host_config["resolver"]
+            
+            processed_config = {
+                "download_with_aria2c": host_config.get("download_with_aria2c", False),
+                "resolver": _get_resolver_class(resolver_name),
+                "max_connections": host_config.get("max_connections_realdebrid" if use_realdebrid else "max_connections_free"),
+                "max_concurrent": host_config.get("max_concurrent_realdebrid" if use_realdebrid else "max_concurrent_free"),
             }
         else:
             # Procesar configuración normal

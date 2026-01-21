@@ -1,14 +1,11 @@
 import aiohttp
 import asyncio
-import time
-import re
 from bs4 import BeautifulSoup
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Callable, Awaitable
-from urllib.parse import urljoin
+from typing import Dict
 from ..types import DownloadInfo
 from ..host_resolver import AbstractHostResolver
 from fetchr.network import get_aiohttp_proxy_connector
+from fetchr.captcha import solve_css_position_captcha
 
 class FiledotResolver(AbstractHostResolver):
     def __init__(self, timeout: int = 30):
@@ -46,19 +43,7 @@ class FiledotResolver(AbstractHostResolver):
         return form_data
     
 
-    def _solve_captcha(self, soup):
-        data = []
-        
-        for span in soup.find_all('span'):
-            number = span.get_text().strip()
-            style = span.get('style', '')
-            match = re.search(r'padding-left:(\d+)px', style)
-            
-            if match and number.isdigit():
-                data.append((int(match.group(1)), number))
-        
-        data.sort()
-        return ''.join([num for pos, num in data])
+
 
     async def get_download_info(self, url: str) -> DownloadInfo:
         if not self.session:
@@ -89,7 +74,7 @@ class FiledotResolver(AbstractHostResolver):
             raise ValueError("No captcha div found")
         form_data = self._extract_form_data(soup)
         form_data['adblock_detected'] = '0'
-        captcha_code = self._solve_captcha(captcha_div)
+        captcha_code = solve_css_position_captcha(captcha_div)
         form_data['code'] = int(captcha_code)
 
         # await 7 seconds

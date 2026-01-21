@@ -110,6 +110,7 @@ class Aria2cDownloader():
         ignore_ssl: bool = False,
         silent: bool = False,
         download_info: DownloadInfo = None,
+        max_tries: int = 5,
     ):
         cmd = [
             "aria2c",
@@ -120,6 +121,8 @@ class Aria2cDownloader():
             f"-s", str(use_connections), # splited parts
             #f"-j", str(max_concurrent_downloads), # max concurrent downloads
             "-o", str(download_info.filename),
+            f"--max-tries={max_tries}",
+            "--retry-wait=1",
         ]
 
         if headers:
