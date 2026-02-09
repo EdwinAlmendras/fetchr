@@ -1,10 +1,18 @@
 from ..types import DownloadInfo
 from ..host_resolver import AbstractHostResolver
 import aiohttp
-from fetchr.network import get_tor_client
+import os
+from fetchr.network import get_tor_client, get_aiohttp_proxy_connector, get_random_proxy
 import logging
 from urllib.parse import unquote
 logger = logging.getLogger("downloader.passtrought")
+
+def _env_proxy_hint():
+    """Return a string if any proxy-related env var is set (for logging)."""
+    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+        if os.environ.get(key):
+            return f" (env {key} is set: {os.environ.get(key)[:50]}...)" if len(os.environ.get(key, "")) > 50 else f" (env {key}={os.environ.get(key)})"
+    return ""
 
 
 REDIRECT_HOSTS = [
@@ -26,8 +34,12 @@ class PassThroughResolver(AbstractHostResolver):
             'Upgrade-Insecure-Requests': '1',
         }
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(headers=self.headers)
-        logger.debug("PassThroughResolver: session created (direct, no proxy)")
+        # Use proxy session for all connections (except when explicitly using Tor)
+        self.session = get_aiohttp_proxy_connector()
+        hint = _env_proxy_hint()
+        if hint:
+            logger.info("PassThroughResolver: process has proxy env set%s", hint)
+        logger.debug("PassThroughResolver: session created (with proxy)")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -38,10 +50,18 @@ class PassThroughResolver(AbstractHostResolver):
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
         use_tor = "onion" in url
         client = get_tor_client() if use_tor else self.session
+        
+        # Log which proxy we're using for non-Tor connections
+        if not use_tor and hasattr(self.session, '_connector'):
+            proxy_used = getattr(self.session._connector, 'proxy', None)
+            client_type = "tor" if use_tor else f"proxy({proxy_used})"
+        else:
+            client_type = "tor" if use_tor else "direct"
+            
         logger.info(
             "PassThroughResolver: url=%s client=%s",
             url,
-            "tor" if use_tor else "direct",
+            client_type,
         )
         if not client:
             logger.error("PassThroughResolver: client is None (session not ready?)")
