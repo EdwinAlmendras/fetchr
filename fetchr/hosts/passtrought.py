@@ -27,37 +27,59 @@ class PassThroughResolver(AbstractHostResolver):
         }
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(headers=self.headers)
+        logger.debug("PassThroughResolver: session created (direct, no proxy)")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
-            
+            logger.debug("PassThroughResolver: session closed")
+
     async def get_download_info(self, url: str, *args, **kwargs) -> DownloadInfo:
-        client = get_tor_client() if "onion" in url else self.session
-        logger.info(f"Getting download info for url: {url}, check protector host: {REDIRECT_HOSTS}")
-        """  if any(host in url for host in REDIRECT_HOSTS):
-            logger.info("URL match in protectors")
-            response = await client.get(url)
-            url = str(response.url)
-            logger.info(f"Resolved url: {url} by redirect")
-            client = self.session
-         """
+        use_tor = "onion" in url
+        client = get_tor_client() if use_tor else self.session
+        logger.info(
+            "PassThroughResolver: url=%s client=%s",
+            url,
+            "tor" if use_tor else "direct",
+        )
+        if not client:
+            logger.error("PassThroughResolver: client is None (session not ready?)")
+            raise RuntimeError("PassThroughResolver: no HTTP client available")
 
         while True:
+            logger.debug("PassThroughResolver: GET %s", url)
             response = await client.get(url, *args, **kwargs)
-            # if response code 405     
+            logger.debug(
+                "PassThroughResolver: response status=%s url=%s",
+                response.status,
+                response.url,
+            )
             if response.status == 405:
-                logger.warning(f"405 error, requesting url: {url}")
+                logger.warning("PassThroughResolver: 405 Method Not Allowed, retrying GET for %s", url)
                 response = await client.get(url, *args, **kwargs)
+                logger.debug("PassThroughResolver: retry response status=%s", response.status)
             if response.status == 200:
-                url = str(response.url)
-                logger.info(f"Final download url: {url}")
+                final_url = str(response.url)
+                if final_url != url:
+                    logger.info("PassThroughResolver: redirect %s -> %s", url, final_url)
+                url = final_url
                 content_disp = response.headers.get("Content-Disposition")
+                content_length = response.headers.get("Content-Length", "0")
+                logger.info(
+                    "PassThroughResolver: 200 OK final_url=%s Content-Length=%s Content-Disposition=%s",
+                    url,
+                    content_length,
+                    content_disp or "(none)",
+                )
                 break
-            else:
-                logger.warning(f"Unexpected status code {response.status} for url: {url}, response url {response.url}")
-                raise Exception(f"Failed to get download info, status code: {response.status}")
+            logger.warning(
+                "PassThroughResolver: unexpected status=%s for url=%s response_url=%s",
+                response.status,
+                url,
+                response.url,
+            )
+            raise Exception(f"Failed to get download info, status code: {response.status}")
 
         filename = None
         if content_disp:
@@ -77,8 +99,9 @@ class PassThroughResolver(AbstractHostResolver):
                     else:
                         encoded_name = raw_part
                     filename = unquote(encoded_name)
+                    logger.debug("PassThroughResolver: filename from filename*= %s", filename)
                 except Exception as e:
-                    logger.warning(f"failed to parse filename* from Content-Disposition: {e}")
+                    logger.warning("PassThroughResolver: failed to parse filename* from Content-Disposition: %s", e)
                     filename = None
             # Fallback to simple filename=
             if not filename and "filename=" in cdl:
@@ -87,14 +110,22 @@ class PassThroughResolver(AbstractHostResolver):
                     if raw_part.startswith('"') and raw_part.endswith('"'):
                         raw_part = raw_part[1:-1]
                     filename = raw_part
+                    logger.debug("PassThroughResolver: filename from filename= %s", filename)
                 except Exception as e:
-                    logger.warning(f"failed to parse filename from Content-Disposition: {e}")
+                    logger.warning("PassThroughResolver: failed to parse filename from Content-Disposition: %s", e)
                     filename = None
 
         if not filename:
             filename = url.rstrip("/").split("/")[-1]
+            logger.debug("PassThroughResolver: filename from URL path: %s", filename)
 
         size = int(response.headers.get("Content-Length", "0"))
+        logger.info(
+            "PassThroughResolver: returning DownloadInfo url=%s filename=%s size=%s",
+            url,
+            filename,
+            size,
+        )
         return DownloadInfo(url, filename, size, {})
 
     
