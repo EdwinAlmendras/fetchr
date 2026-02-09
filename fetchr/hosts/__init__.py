@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 # List to hold registered resolver classes
 RESOLVERS: List[Type[AbstractHostResolver]] = []
 
+# Default/fallback resolver when no specific host matches (passthrough = direct URL)
+from .passtrought import PassThroughResolver
+
 def _discover_resolvers():
     """
     Dynamically discover and register resolver classes from the current package.
@@ -39,22 +42,37 @@ def _discover_resolvers():
         except Exception as e:
             logger.warning(f"Failed to load module {name}: {e}")
 
-def get_resolver(url: str) -> Optional[AbstractHostResolver]:
+def _resolver_matches(resolver_cls: Type[AbstractHostResolver], url: str) -> bool:
+    """Return True if this resolver class handles the given URL."""
+    # Skip PassThroughResolver: it is only used as fallback, never by URL match
+    if resolver_cls is PassThroughResolver:
+        return False
+    # Prefer explicit match() class/static method if present
+    match_fn = getattr(resolver_cls, "match", None)
+    if callable(match_fn):
+        return match_fn(url)
+    # Otherwise match by class attribute 'host' (e.g. host in url)
+    host = getattr(resolver_cls, "host", None)
+    if host and isinstance(host, str):
+        return host in url
+    return False
+
+def get_resolver(url: str) -> AbstractHostResolver:
     """
     Factory function to get the appropriate resolver for a given URL.
+    Uses PassThroughResolver as default when no specific resolver matches.
     """
     _discover_resolvers()
-    
+
     for resolver_cls in RESOLVERS:
         try:
-            if resolver_cls.match(url):
+            if _resolver_matches(resolver_cls, url):
                 return resolver_cls()
-        except NotImplementedError:
-             logger.warning(f"Resolver {resolver_cls.__name__} does not implement match()")
         except Exception as e:
-             logger.error(f"Error checking match for {resolver_cls.__name__}: {e}")
-            
-    return None
+            logger.error(f"Error checking match for {resolver_cls.__name__}: {e}")
+
+    # No specific resolver matched: use passthrough (direct URL) as default
+    return PassThroughResolver()
 
 async def get_download_info(url: str) -> DownloadInfo:
     """
